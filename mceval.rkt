@@ -23,6 +23,9 @@
         ((assignment? exp) (eval-assignment exp env))
         ((definition? exp) (eval-definition exp env))
         ((if? exp) (eval-if exp env))
+        ((and? exp) (eval-and exp env))
+        ((or? exp) (eval-or exp env))
+        ((let? exp) (eval-let exp env))
         ((lambda? exp)
          (make-procedure (lambda-parameters exp)
                          (lambda-body exp)
@@ -61,6 +64,47 @@
   (if (true? (mceval (if-predicate exp) env))
       (mceval (if-consequent exp) env)
       (mceval (if-alternative exp) env)))
+
+(define (eval-and exp env)
+  (cond
+    [(null? (rest exp))#t]
+    [(false? (mceval (first (rest exp)) env)) #f]
+    [else (mceval (cons (first exp)(rest(rest exp))) env)]
+    )
+  )
+(define (eval-or exp env)
+  (cond
+    [(null? (rest exp))#f]
+    [(true? (mceval (first (rest exp)) env)) #t]
+    [else (mceval (cons (first exp)(rest(rest exp))) env)]
+    )
+  )
+
+
+(define (eval-let exp env)
+  (eval-sequence (rest(rest exp)) (extend-environment (eval-let-list-of-variables exp env) (eval-let-list-of-values exp env) env))
+  )
+
+(define (eval-let-list-of-variables exp env)
+  (if (null? exp)
+      '()
+      (cons (first(first (first (rest exp))))(eval-let-list-of-variables (rest (first (rest exp))) env))
+      )
+  )
+(define (eval-let-list-of-values exp env)
+  (if (null? exp)
+      '()
+      (cons (rest (first(first (rest exp)))) (eval-let-list-of-values (rest (first (rest exp))) env))
+      )
+  )
+;(define (eval-let-set-variables-to-values var val env)
+;  (if (null? var) && (null? val)
+;      null
+;      (begin)
+;      )
+;  )
+
+
 
 (define (eval-sequence exps env)
   (cond ((last-exp? exps) (mceval (first-exp exps) env))
@@ -145,6 +189,11 @@
 (define (make-if predicate consequent alternative)
   (list 'if predicate consequent alternative))
 
+(define (and? exp) (tagged-list? exp 'and))
+
+(define (or? exp) (tagged-list? exp 'or))
+
+(define (let? exp) (tagged-list? exp 'let))
 
 (define (begin? exp) (tagged-list? exp 'begin))
 
@@ -305,7 +354,16 @@
         (list 'cdr cdr)
         (list 'cons cons)
         (list 'null? null?)
-;;      more primitives
+        (list '+ +);
+        (list '* *);
+        (list '= =);
+        (list '- -);
+        (list '/ /);
+        (list '< <);
+        (list '<= <=);
+        (list '> >);
+        (list '>= >=);
+        (list 'error (lambda () (error "Metacircular Evaluator Aborted")));
         ))
 
 (define (primitive-procedure-names)
