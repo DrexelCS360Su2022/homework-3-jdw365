@@ -26,6 +26,8 @@
         ((and? exp) (eval-and exp env))
         ((or? exp) (eval-or exp env))
         ((let? exp) (eval-let exp env))
+        ((force? exp) (eval-force exp env))
+        ((delay? exp) (eval-delay exp env))
         ((lambda? exp)
          (make-procedure (lambda-parameters exp)
                          (lambda-body exp)
@@ -84,25 +86,39 @@
 (define (eval-let exp env)
   (eval-sequence (rest(rest exp)) (extend-environment (eval-let-list-of-variables exp env) (eval-let-list-of-values exp env) env))
   )
+(define (let-bindings exp)
+  (first (rest exp))
+  )
+
+(define (let-variable-binding exp)
+  (first(first (let-bindings exp)))
+  )
+(define (let-value-binding exp)
+  (first(rest (first (let-bindings exp))))
+  )
 
 (define (eval-let-list-of-variables exp env)
-  (if (null? exp)
-      '()
-      (cons (first(first (first (rest exp))))(eval-let-list-of-variables (rest (first (rest exp))) env))
+  (if (null? (rest (let-bindings exp)))
+      (cons (let-variable-binding exp) '())
+      (cons (let-variable-binding exp) (eval-let-list-of-variables (cons (first exp) (cons (rest (let-bindings exp)) '())) env))
       )
   )
 (define (eval-let-list-of-values exp env)
-  (if (null? exp)
-      '()
-      (cons (rest (first(first (rest exp)))) (eval-let-list-of-values (rest (first (rest exp))) env))
+  (if (null? (rest(let-bindings exp)))
+      (cons (let-value-binding exp) '())
+      (cons (let-value-binding exp) (eval-let-list-of-values (cons (first exp) (cons (rest (let-bindings exp)) '())) env))
       )
   )
-;(define (eval-let-set-variables-to-values var val env)
-;  (if (null? var) && (null? val)
-;      null
-;      (begin)
-;      )
-;  )
+
+
+
+(define (eval-force exp env)
+  (mceval (rest exp) env)
+  )
+
+(define (eval-delay exp env)
+  (mceval (list 'lambda '() (first (rest exp))) env)
+  )
 
 
 
@@ -194,6 +210,10 @@
 (define (or? exp) (tagged-list? exp 'or))
 
 (define (let? exp) (tagged-list? exp 'let))
+
+(define (force? exp) (tagged-list? exp 'force))
+
+(define (delay? exp) (tagged-list? exp 'delay))
 
 (define (begin? exp) (tagged-list? exp 'begin))
 
